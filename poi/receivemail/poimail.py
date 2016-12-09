@@ -53,6 +53,7 @@ class Receiver(BrowserView):
             logger.warn(msg)
             return msg
         message = message_from_string(mail)
+        self.encoding = self._get_encoding(message)
 
         logger.debug('--------')
         logger.debug(mail)
@@ -407,6 +408,8 @@ class Receiver(BrowserView):
         if not message.is_multipart():
             mimetype = message.get_content_type()
             charset = message.get_content_charset()
+            encoding = self._get_encoding(message)
+            payload = self._decode(payload, encoding)
             logger.info("Charset: %r", charset)
             if charset and charset != 'utf-8':
                 # We only want to store unicode or ascii or utf-8 in
@@ -427,8 +430,14 @@ class Receiver(BrowserView):
                 return text, mimetype
         return '', 'text/plain'
 
+    def _get_encoding(self, message):
+        # Especially base64 or quoted-printable.
+        return message.get('Content-Transfer-Encoding', '').lower()
+
     def part_to_text_and_mimetype(self, part):
-        payload = quopri.decodestring(part.get_payload())
+        payload = part.get_payload()
+        encoding = self._get_encoding(part)
+        payload = self._decode(payload, encoding)
         if part.get_content_type() == 'text/plain':
             return payload, 'text/plain'
         tt = getToolByName(self.context, 'portal_transforms')
@@ -450,6 +459,24 @@ class Receiver(BrowserView):
             return u'', 'text/plain'
         return safe.getData(), mimetype
 
+    def _decode(self, payload, encoding=''):
+        # Decode from base64 or quoted-printable.
+        if not encoding:
+            # Take the encoding of the main message.
+            encoding = self.encoding
+        if encoding == 'base64':
+            try:
+                return base64.decodestring(payload)
+            except TypeError:
+                return payload
+        if encoding == 'quoted-printable':
+            return quopri.decodestring(payload)
+        if encoding == 'binary':
+            return payload
+        # If there is no encoding, we could try a few, but that may also
+        # destroy a perfectly fine text that does not need extra handling.
+        return payload
+
     def get_attachments(self, message):
         """Get attachments.
         """
@@ -461,18 +488,8 @@ class Receiver(BrowserView):
             filename = message.get_filename()
             if not filename:
                 return []
-            encoding = message.get('Content-Transfer-Encoding', '')
-            if encoding == 'base64':
-                data = base64.decodestring(payload)
-            elif encoding == 'binary':
-                # Untested.
-                data = payload
-            elif encoding == 'quoted-printable':
-                data = quopri.decodestring(payload)
-            else:
-                # TODO: support other encodings?  Not sure if this
-                # makes sense for anything else.
-                return []
+            encoding = self._get_encoding(message)
+            data = self._decode(payload, encoding)
             return [(filename, data)]
         attachments = []
         for part in payload:

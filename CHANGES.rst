@@ -4,6 +4,9 @@ Changelog
 1.12 (unreleased)
 -----------------
 
+- Do more decoding.  Each part can have its own encoding.  We should
+  use those to make something readable.  [maurits]
+
 - Decode from quoted printable in a few cases.  [maurits]
 
 
