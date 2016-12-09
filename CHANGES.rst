@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.13 (unreleased)
+1.13 (2016-12-09)
 -----------------
 
 - Fixed package: don't use symlinks.  [maurits]
