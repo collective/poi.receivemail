@@ -499,9 +499,9 @@ class Receiver(BrowserView):
         issue.setArea(tracker.getAvailableAreas()[0]['id'])
 
         # This is done by default already when you do not specify anything:
-        #issue.setSeverity(tracker.getDefaultSeverity())
+        # issue.setSeverity(tracker.getDefaultSeverity())
         # This could be interesting:
-        #issue.setSteps(steps, mimetype='text/x-web-intelligent')
+        # issue.setSteps(steps, mimetype='text/x-web-intelligent')
 
         if not issue.isValid():
             logger.warn('Issue is not valid. Post will fail.')
