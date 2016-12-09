@@ -4,7 +4,7 @@ Changelog
 1.12 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Decode from quoted printable in a few cases.  [maurits]
 
 
 1.11 (2012-10-14)

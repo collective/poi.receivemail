@@ -1,5 +1,6 @@
 import base64
 import logging
+import quopri
 from email.Errors import HeaderParseError
 from email import message_from_string
 try:
@@ -427,12 +428,13 @@ class Receiver(BrowserView):
         return '', 'text/plain'
 
     def part_to_text_and_mimetype(self, part):
+        payload = quopri.decodestring(part.get_payload())
         if part.get_content_type() == 'text/plain':
-            return part.get_payload(), 'text/plain'
+            return payload, 'text/plain'
         tt = getToolByName(self.context, 'portal_transforms')
         if part.get_content_type() == 'text/html':
             mimetype = 'text/x-html-safe'
-            safe = tt.convertTo(mimetype, part.get_payload(),
+            safe = tt.convertTo(mimetype, payload,
                                 mimetype='text/html')
             # Poi responses fail on view when you have the x-html-safe
             # mime type.  Fixed in Poi 1.2.12 (unreleased) but hey, we
@@ -442,7 +444,7 @@ class Receiver(BrowserView):
             # This might not work in all cases, e.g. for attachments,
             # but that is not tested yet.
             mimetype = 'text/plain'
-            safe = tt.convertTo(mimetype, part.get_payload())
+            safe = tt.convertTo(mimetype, payload)
         if safe is None:
             logger.warn("Converting part to mimetype %s failed.", mimetype)
             return u'', 'text/plain'
@@ -465,6 +467,8 @@ class Receiver(BrowserView):
             elif encoding == 'binary':
                 # Untested.
                 data = payload
+            elif encoding == 'quoted-printable':
+                data = quopri.decodestring(payload)
             else:
                 # TODO: support other encodings?  Not sure if this
                 # makes sense for anything else.
