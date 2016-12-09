@@ -1,7 +1,7 @@
 Changelog
 =========
 
-1.12 (unreleased)
+1.12 (2016-12-09)
 -----------------
 
 - Do more decoding.  Each part can have its own encoding.  We should
