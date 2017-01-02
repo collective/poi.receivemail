@@ -4,7 +4,11 @@ Changelog
 1.14 (unreleased)
 -----------------
 
-- Nothing changed yet.
+- Fixed issue creation for Plone 4.  Posting an issue would fail
+  because no ``post`` transition was available.  This is because in
+  Plone 4 this happens automatically on the
+  ``IObjectInitializedEvent``.  Now we only do the transition if the
+  review state is still ``new``.  [maurits]
 
 
 1.13 (2016-12-09)

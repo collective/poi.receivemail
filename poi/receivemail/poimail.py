@@ -525,7 +525,8 @@ class Receiver(BrowserView):
         # issue.setSteps(steps, mimetype='text/x-web-intelligent')
 
         if not issue.isValid():
-            logger.warn('Issue is not valid. Post will fail.')
+            logger.warn('Issue is not valid. '
+                        'Any following exception is probably caused by that.')
 
         # Creation has finished, so we remove the archetypes flag for
         # that, otherwise the issue gets renamed when someone edits
@@ -533,7 +534,10 @@ class Receiver(BrowserView):
         issue.unmarkCreationFlag()
         notify(ObjectInitializedEvent(issue))
         workflow_tool = getToolByName(tracker, 'portal_workflow')
-        # The 'post' transition is only available when the issue is valid.
-        workflow_tool.doActionFor(issue, 'post')
+        # The 'post' transition is only available when the issue is valid.  And
+        # it is only available on Plone 3, as on Plone 4 it is already
+        # transitioned from new to unconfirmed.
+        if workflow_tool.getInfoFor(issue, 'review_state') == 'new':
+            workflow_tool.doActionFor(issue, 'post')
         issue.reindexObject()
         return issue
