@@ -1,8 +1,8 @@
 Changelog
 =========
 
-1.14 (unreleased)
------------------
+2.0 (unreleased)
+----------------
 
 - Check ``NEEDED_PERMISSIONS`` before faking a manager.  If a user
   already has the needed permissions, there is no need to fake a
