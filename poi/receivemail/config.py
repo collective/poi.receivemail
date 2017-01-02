@@ -4,8 +4,17 @@
 # list or tuple if you do not want those special tricks at all.
 LISTEN_ADDRESSES = ('127.0.0.1', )
 
-# Should we fake a Manager role to be sure that a post succeeds?
+# Should we fake a TrackerManager/Manager role to be sure that a post succeeds?
 FAKE_MANAGER = True
+
+# Permissions that are needed.  If a user already has ALL these permissions, we
+# will not fake a manager role.
+NEEDED_PERMISSIONS = [
+    'Add portal content',
+    'Poi: Add Issue',
+    'Poi: Add Response',
+    'Poi: Upload attachment',
+]
 
 # Do advanced matching on subject to find existing issue that this
 # email could be a reply to?  When False we just look for '#123' in

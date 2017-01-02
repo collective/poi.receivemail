@@ -4,6 +4,10 @@ Changelog
 1.14 (unreleased)
 -----------------
 
+- Check ``NEEDED_PERMISSIONS`` before faking a manager.  If a user
+  already has the needed permissions, there is no need to fake a
+  manager.  [maurits]
+
 - Fake a ``TrackerManager`` instead of ``Manager`` when possible.
   This role was introduced in Products.Poi 2.2 (Plone 4).  This is
   done when ``FAKE_MANAGER`` is true, which is the default.  This only

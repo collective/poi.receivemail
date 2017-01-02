@@ -30,6 +30,8 @@ from poi.receivemail.config import LISTEN_ADDRESSES
 from poi.receivemail.config import FAKE_MANAGER
 from poi.receivemail.config import ADVANCED_SUBJECT_MATCH
 from poi.receivemail.config import ADD_ATTACHMENTS
+from poi.receivemail.config import NEEDED_PERMISSIONS
+
 
 logger = logging.getLogger('poimail')
 
@@ -229,24 +231,29 @@ class Receiver(BrowserView):
                 # Right...
                 return
 
-        # See if this user already has the TrackerManager or Manager role,
-        # otherwise add it.
+        # See if this user already has the needed permissions, otherwise fake a
+        # TrackerManager or Manager role.
         faked = False
         if FAKE_MANAGER:
-            site = getSite()
-            role = 'TrackerManager'
-            if role not in site.__ac_roles__:
-                # On Plone 3 Poi has no TrackerManager role yet.
-                role = 'Manager'
-            if not user.allowed(self.context, (role, )):
+            for permission in NEEDED_PERMISSIONS:
+                if user.has_permission(permission, self.context):
+                    continue
+                # We need to fake a role.
+                site = getSite()
+                role = 'TrackerManager'
+                if role not in site.__ac_roles__:
+                    # On Plone 3 Poi has no TrackerManager role yet.
+                    role = 'Manager'
                 logger.info("Faking %s role for user %s", role, user_id)
                 user = UnrestrictedUser(user_id, '', [role], '')
                 faked = True
+                break
 
         # Now see if we changed something.
         if not (faked or switched):
             return
         newSecurityManager(self.request, user)
+        # Note: switched and faked may both be true at the same time.
         if switched:
             logger.debug("Switched to user %s", user_id)
         if faked:
