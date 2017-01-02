@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.0 (unreleased)
+2.0 (2017-01-02)
 ----------------
 
 - Check ``NEEDED_PERMISSIONS`` before faking a manager.  If a user
