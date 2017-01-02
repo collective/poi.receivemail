@@ -6,7 +6,8 @@ Changelog
 
 - Fake a ``TrackerManager`` instead of ``Manager`` when possible.
   This role was introduced in Products.Poi 2.2 (Plone 4).  This is
-  done when ``FAKE_MANAGER`` is true, which is the default.
+  done when ``FAKE_MANAGER`` is true, which is the default.  This only
+  happens for specified IP-addresses.  [maurits]
 
 - Fixed issue creation for Plone 4.  Posting an issue would fail
   because no ``post`` transition was available.  This is because in
