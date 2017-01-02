@@ -4,6 +4,10 @@ Changelog
 1.14 (unreleased)
 -----------------
 
+- Fake a ``TrackerManager`` instead of ``Manager`` when possible.
+  This role was introduced in Products.Poi 2.2 (Plone 4).  This is
+  done when ``FAKE_MANAGER`` is true, which is the default.
+
 - Fixed issue creation for Plone 4.  Posting an issue would fail
   because no ``post`` transition was available.  This is because in
   Plone 4 this happens automatically on the

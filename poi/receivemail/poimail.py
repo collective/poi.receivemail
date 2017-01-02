@@ -24,6 +24,7 @@ from Products.Five import BrowserView
 from Products.CMFPlone.utils import _createObjectByType
 from Products.Poi.adapters import IResponseContainer
 from Products.Poi.adapters import Response
+from zope.component.hooks import getSite
 
 from poi.receivemail.config import LISTEN_ADDRESSES
 from poi.receivemail.config import FAKE_MANAGER
@@ -228,13 +229,20 @@ class Receiver(BrowserView):
                 # Right...
                 return
 
-        # See if this user already has the Manager role, otherwise add it.
-        if FAKE_MANAGER and not user.allowed(self.context, ('Manager', )):
-            logger.debug("Faking Manager role for user %s", user_id)
-            user = UnrestrictedUser(user_id, '', ['Manager'], '')
-            faked = True
-        else:
-            faked = False
+        # See if this user already has the TrackerManager or Manager role,
+        # otherwise add it.
+        faked = False
+        if FAKE_MANAGER:
+            site = getSite()
+            role = 'TrackerManager'
+            if role not in site.__ac_roles__:
+                # On Plone 3 Poi has no TrackerManager role yet.
+                role = 'Manager'
+            if not user.allowed(self.context, (role, )):
+                logger.info("Faking %s role for user %s", role, user_id)
+                user = UnrestrictedUser(user_id, '', [role], '')
+                faked = True
+
         # Now see if we changed something.
         if not (faked or switched):
             return
