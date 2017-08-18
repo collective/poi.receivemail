@@ -92,9 +92,10 @@ class Receiver(BrowserView):
             subjects.append(decoded_string)
         subject = u' '.join(subjects)
 
-        logger.debug("Tracker at %s received mail from %r to %r with "
-                     "subject %r", self.context.absolute_url(),
-                     from_address, to_addresses, subject)
+        logger.info(
+            "Tracker at %s received mail from %r to %r with "
+            "subject %r", self.context.absolute_url(),
+            from_address, to_addresses, subject)
         details, mimetype = self.get_details_and_mimetype(message)
         logger.debug('Got payload with mimetype %s from email.', mimetype)
         # Transform to an allowed mime type, if needed.

@@ -4,6 +4,9 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
+- Log the sender and subject at info level.
+  [maurits]
+
 - Caught several cases where the created issue was invalid.
   This caused a workflow exception, which means the issue was never added.
   This could happen when an html mail was received and the mime type was not allowed in the details field.
