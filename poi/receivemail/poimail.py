@@ -20,10 +20,13 @@ from AccessControl.User import UnrestrictedUser
 from OFS.Image import File
 from Products.Archetypes.event import ObjectInitializedEvent
 from Products.CMFCore.utils import getToolByName
+from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.Five import BrowserView
 from Products.CMFPlone.utils import _createObjectByType
 from Products.Poi.adapters import IResponseContainer
 from Products.Poi.adapters import Response
+from Products.Poi.config import DEFAULT_ISSUE_MIME_TYPE
+from Products.Poi.config import ISSUE_MIME_TYPES
 from zope.component.hooks import getSite
 
 from poi.receivemail.config import LISTEN_ADDRESSES
@@ -93,11 +96,14 @@ class Receiver(BrowserView):
                      "subject %r", self.context.absolute_url(),
                      from_address, to_addresses, subject)
         details, mimetype = self.get_details_and_mimetype(message)
-        if not details:
-            details = "Warning: no details found in email"
-            mimetype = 'text/plain'
-            logger.warn(details)
         logger.debug('Got payload with mimetype %s from email.', mimetype)
+        # Transform to an allowed mime type, if needed.
+        details, mimetype = self.to_allowed_mimetype(details, mimetype)
+        if not details:
+            # Details is a required field.
+            details = '.'
+            mimetype = 'text/plain'
+            logger.info('No details found in email.')
 
         # Create an attachment from the complete email.  Somehow the
         # result is nicer when it is put in a response than in an
@@ -418,6 +424,7 @@ class Receiver(BrowserView):
         We prefer to get plain text.  Actually, getting the html from
         the email looks quite okay as long as we put it through the
         safe html transform.
+        And the Poi config must allow text/html.
         """
         payload = message.get_payload()
         if not message.is_multipart():
@@ -425,7 +432,7 @@ class Receiver(BrowserView):
             charset = message.get_content_charset()
             encoding = self._get_encoding(message)
             payload = self._decode(payload, encoding)
-            logger.info("Charset: %r", charset)
+            logger.debug("Charset: %r", charset)
             if charset and charset != 'utf-8':
                 # We only want to store unicode or ascii or utf-8 in
                 # Plone.
@@ -473,6 +480,19 @@ class Receiver(BrowserView):
             logger.warn("Converting part to mimetype %s failed.", mimetype)
             return u'', 'text/plain'
         return safe.getData(), mimetype
+
+    def to_allowed_mimetype(self, text, mimetype):
+        if mimetype not in ISSUE_MIME_TYPES:
+            tt = getToolByName(self.context, 'portal_transforms')
+            logger.info('Converting mail text mimetype from %s to %s.',
+                        mimetype, DEFAULT_ISSUE_MIME_TYPE)
+            text = tt.convertTo(
+                DEFAULT_ISSUE_MIME_TYPE, text, mimetype=mimetype)
+            if text is None:
+                logger.warn("Converting text to mimetype %s failed.", mimetype)
+                return u'', 'text/plain'
+            text = text.getData().strip()
+        return text, mimetype
 
     def _decode(self, payload, encoding=''):
         # Decode from base64 or quoted-printable.
@@ -538,8 +558,8 @@ class Receiver(BrowserView):
         # issue.setSeverity(tracker.getDefaultSeverity())
         # This could be interesting:
         # issue.setSteps(steps, mimetype='text/x-web-intelligent')
-
-        if not issue.isValid():
+        valid = issue.isValid()
+        if not valid:
             logger.warn('Issue is not valid. '
                         'Any following exception is probably caused by that.')
 
@@ -547,12 +567,21 @@ class Receiver(BrowserView):
         # that, otherwise the issue gets renamed when someone edits
         # it.
         issue.unmarkCreationFlag()
-        notify(ObjectInitializedEvent(issue))
+        try:
+            notify(ObjectInitializedEvent(issue))
+        except WorkflowException:
+            logger.warn('Caught workflow exception when initializing issue.')
         workflow_tool = getToolByName(tracker, 'portal_workflow')
         # The 'post' transition is only available when the issue is valid.  And
         # it is only available on Plone 3, as on Plone 4 it is already
-        # transitioned from new to unconfirmed.
+        # transitioned from new to unconfirmed during the handling of the
+        # ObjectInitializedEvent.
         if workflow_tool.getInfoFor(issue, 'review_state') == 'new':
-            workflow_tool.doActionFor(issue, 'post')
+            if valid:
+                workflow_tool.doActionFor(issue, 'post')
+            else:
+                logger.warn(
+                    'Invalid issue is in new state and may be invisible: %s',
+                    issue.absolute_url())
         issue.reindexObject()
         return issue

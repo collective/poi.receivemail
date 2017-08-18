@@ -4,7 +4,14 @@ Changelog
 2.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Caught several cases where the created issue was invalid.
+  This caused a workflow exception, which means the issue was never added.
+  This could happen when an html mail was received and the mime type was not allowed in the details field.
+  Now we convert the mail text to the default issue mime type.
+  If the issue is still invalid, we catch the workflow exception and create the issue anyway,
+  because there is no easy way of signalling this to the sender.
+  The issue then has the ``new`` state, which may not be visible in the Poi user interface though.
+  [maurits]
 
 
 2.0 (2017-01-02)
