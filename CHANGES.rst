@@ -1,7 +1,7 @@
 Changelog
 =========
 
-2.0.1 (unreleased)
+2.0.1 (2017-08-18)
 ------------------
 
 - Log the sender and subject at info level.
