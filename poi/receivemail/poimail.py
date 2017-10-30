@@ -123,7 +123,7 @@ class Receiver(BrowserView):
         # Possibly switch to a different user.
         user = self.find_user_for_switching(from_address)
         if user is None:
-            self.create_content(**mail_info)
+            result = self.create_content(**mail_info)
         else:
             with api.env.adopt_user(user=user):
                 current_user = api.user.get_current()
@@ -133,7 +133,7 @@ class Receiver(BrowserView):
                             from_address, user_name, user_id)
                 role = self.find_role_to_fake()
                 if not role:
-                    self.create_content(**mail_info)
+                    result = self.create_content(**mail_info)
                 else:
                     logger.info("Faking %s role for user %s", role, user_id)
                     # Fake a few extra roles as well.  For example,
@@ -141,9 +141,12 @@ class Receiver(BrowserView):
                     # permission, but Anonymous may have.  Go figure.
                     roles = [role, 'Member', 'Anonymous']
                     with api.env.adopt_roles(roles):
-                        self.create_content(**mail_info)
+                        result = self.create_content(**mail_info)
 
         # We need to return something.
+        if result:
+            # error
+            return result
         return mail
 
     def create_content(self, **kwargs):
