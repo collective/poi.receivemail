@@ -3,21 +3,13 @@ import logging
 import quopri
 from email.Errors import HeaderParseError
 from email import message_from_string
-try:
-    from email import utils as email_utils
-    email_utils  # pyflakes
-except ImportError:
-    # BBB Python 2.4
-    from email import Utils as email_utils
+from email import utils as email_utils
 from email import Header
 
 from zope.event import notify
 from AccessControl import Unauthorized
-from AccessControl.SecurityManagement import getSecurityManager
-from AccessControl.SecurityManagement import setSecurityManager
-from AccessControl.SecurityManagement import newSecurityManager
-from AccessControl.User import UnrestrictedUser
 from OFS.Image import File
+from plone import api
 from Products.Archetypes.event import ObjectInitializedEvent
 from Products.CMFCore.utils import getToolByName
 from Products.CMFCore.WorkflowCore import WorkflowException
@@ -117,11 +109,51 @@ class Receiver(BrowserView):
         else:
             logger.debug("Could not determine tags.")
 
-        # Store original security manager.
-        sm = getSecurityManager()
-        # Possibly switch to a different user.
-        self.switch_user(from_address)
+        # Get all info that we need from the mail.
+        mail_info = {
+            'subject': subject,
+            'tags': tags,
+            'message': message,
+            'details': details,
+            'from_address': from_address,
+            'attachment': attachment,
+            'mimetype': mimetype,
+        }
 
+        # Possibly switch to a different user.
+        user = self.find_user_for_switching(from_address)
+        if user is None:
+            self.create_content(**mail_info)
+        else:
+            with api.env.adopt_user(user=user):
+                current_user = api.user.get_current()
+                user_id = current_user.getId()
+                user_name = current_user.getUserName()
+                logger.info("Switched email=%s to user name=%s (id=%s)",
+                            from_address, user_name, user_id)
+                role = self.find_role_to_fake()
+                if not role:
+                    self.create_content(**mail_info)
+                else:
+                    logger.info("Faking %s role for user %s", role, user_id)
+                    # Fake a few extra roles as well.  For example,
+                    # TrackerManager may not have the 'Copy or Move'
+                    # permission, but Anonymous may have.  Go figure.
+                    roles = [role, 'Member', 'Anonymous']
+                    with api.env.adopt_roles(roles):
+                        self.create_content(**mail_info)
+
+        # We need to return something.
+        return mail
+
+    def create_content(self, **kwargs):
+        subject = kwargs['subject']
+        tags = kwargs['tags']
+        message = kwargs['message']
+        details = kwargs['details']
+        from_address = kwargs['from_address']
+        attachment = kwargs['attachment']
+        mimetype = kwargs['mimetype']
         issue = self.find_issue(subject, tags, message)
         if issue is None:
             manager = self.get_manager(message, tags)
@@ -167,14 +199,10 @@ class Receiver(BrowserView):
                     logger.error(u'Unauthorized to add response: %s', exc)
                     return u'Unauthorized'
 
-        # Restore original security manager
-        setSecurityManager(sm)
-        return mail
+    def find_user_for_switching(self, from_address):
+        """Find user to switch to.
 
-    def switch_user(self, from_address):
-        """Switch the user.
-
-        This possibly does two things:
+        We want a different user for two things:
 
         1. Switch to the user that belongs to the given email address.
 
@@ -191,7 +219,6 @@ class Receiver(BrowserView):
         elevate privileges when the request originates on the local
         computer.
         """
-        sm = getSecurityManager()
         remote_address = self.request.get('HTTP_X_FORWARDED_FOR')
         if not remote_address:
             # Note that request.get('HTTP_something') always returns
@@ -213,58 +240,38 @@ class Receiver(BrowserView):
         # far too many results; so we do a double check.  Also,
         # apparently ldap can leave '\r\n' at the end of the email
         # address, so we strip it.  And we compare lowercase.
-        users = [user for user in users if user.get('email') and
-                 user.get('email').strip().lower() == from_address]
-        user = None
-        switched = False
-        if users:
-            user_id = users[0]['userid']
-            user = pas.getUserById(user_id)
-            if user:
-                switched = True
-        if not user:
-            user = sm.getUser()
-            # Getting the user id can be tricky.
-            if hasattr(user, 'name'):
-                # Works for Anonymous Users
-                user_id = user.name
-            elif hasattr(user, 'getUserId'):
-                # Plone users
-                user_id = user.getUserId()
-            elif hasattr(user, 'getId'):
-                # Root zope users
-                user_id = user.getId()
-            else:
-                # Right...
-                return
+        for user in users:
+            # user is a dictionary
+            email = user.get('email')
+            if not email:
+                continue
+            if email.strip().lower() != from_address:
+                continue
+            user_id = user['userid']
+            user_object = pas.getUserById(user_id)
+            if user_object:
+                return user_object
 
-        # See if this user already has the needed permissions, otherwise fake a
-        # TrackerManager or Manager role.
-        faked = False
-        if FAKE_MANAGER:
-            for permission in NEEDED_PERMISSIONS:
-                if user.has_permission(permission, self.context):
-                    continue
-                # We need to fake a role.
-                site = getSite()
-                role = 'TrackerManager'
-                if role not in site.__ac_roles__:
-                    # On Plone 3 Poi has no TrackerManager role yet.
-                    role = 'Manager'
-                logger.info("Faking %s role for user %s", role, user_id)
-                user = UnrestrictedUser(user_id, '', [role], '')
-                faked = True
-                break
-
-        # Now see if we changed something.
-        if not (faked or switched):
+    def find_role_to_fake(self):
+        # See if this user already has the needed permissions,
+        # otherwise return a role that we should fake.
+        if not FAKE_MANAGER:
             return
-        newSecurityManager(self.request, user)
-        # Note: switched and faked may both be true at the same time.
-        if switched:
-            logger.debug("Switched to user %s", user_id)
-        if faked:
-            logger.debug("Faking Manager role for user %s", user_id)
+        faked = False
+        for permission in NEEDED_PERMISSIONS:
+            if api.user.has_permission(permission, obj=self.context):
+                continue
+            faked = True
+            break
+        if not faked:
+            return
+        # We need to fake a role.
+        site = getSite()
+        role = 'TrackerManager'
+        if role not in site.__ac_roles__:
+            # On Plone 3 Poi has no TrackerManager role yet.
+            role = 'Manager'
+        return role
 
     def get_addresses(self, message, header_name):
         """Get addresses from the header_name.

@@ -1,6 +1,6 @@
 from setuptools import setup, find_packages
 
-version = '2.0.2.dev0'
+version = '3.0.0.dev0'
 
 setup(
     name='poi.receivemail',
@@ -12,15 +12,8 @@ setup(
     # https://pypi.python.org/pypi?:action=list_classifiers
     classifiers=[
         "Framework :: Plone",
-        "Framework :: Plone :: 3.2",
-        "Framework :: Plone :: 3.3",
-        "Framework :: Plone :: 4.0",
-        "Framework :: Plone :: 4.1",
-        "Framework :: Plone :: 4.2",
         "Framework :: Plone :: 4.3",
         "Programming Language :: Python",
-        "Programming Language :: Python :: 2.4",
-        "Programming Language :: Python :: 2.6",
         "Programming Language :: Python :: 2.7",
     ],
     keywords='poi issue tracker mail',
@@ -34,6 +27,7 @@ setup(
     zip_safe=False,
     install_requires=[
         'setuptools',
+        'plone.api',
     ],
     entry_points="""
     # -*- Entry points: -*-

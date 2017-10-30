@@ -1,10 +1,16 @@
 Changelog
 =========
 
-2.0.2 (unreleased)
+3.0.0 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Drop support for Python 2.4, because we use ``plone.api``.
+  Officially drop support for 2.6 too, and for Plone 4.2 and earlier, but it may still work.
+  [maurits]
+
+- Use plone.api to adopt a different user and roles.
+  This is cleaner, and should avoid problems where the faked user did not have a user id.
+  [maurits]
 
 
 2.0.1 (2017-08-18)

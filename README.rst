@@ -12,8 +12,9 @@ an issue.  It is a bridge between smtp2zope_ and `Products.Poi`_.
 Compatibility
 -------------
 
-This has been tested with Plone 3.3.5 and Products.Poi 1.2.11.  Should
-work fine with Plone 4.x and Poi 2.x as well.
+poi.receivemail has been tested with Plone 4.3 and Poi 2.3.
+Since version 3 it uses ``plone.api``.
+For earlier versions, please use poi.receivemail 2.x.
 
 
 Usage
