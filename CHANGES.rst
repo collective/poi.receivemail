@@ -4,6 +4,8 @@ Changelog
 3.0.0 (unreleased)
 ------------------
 
+- Store attachments as blobs.  For example the original email message.  [maurits]
+
 - Drop support for Python 2.4, because we use ``plone.api``.
   Officially drop support for 2.6 too, and for Plone 4.2 and earlier, but it may still work.
   [maurits]

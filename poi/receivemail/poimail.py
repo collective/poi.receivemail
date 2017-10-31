@@ -8,18 +8,21 @@ from email import Header
 
 from zope.event import notify
 from AccessControl import Unauthorized
-from OFS.Image import File
 from plone import api
+from plone.namedfile import NamedBlobFile
 from Products.Archetypes.event import ObjectInitializedEvent
 from Products.CMFCore.utils import getToolByName
 from Products.CMFCore.WorkflowCore import WorkflowException
 from Products.Five import BrowserView
 from Products.CMFPlone.utils import _createObjectByType
+from Products.CMFPlone.utils import safe_unicode
 from Products.Poi.adapters import IResponseContainer
 from Products.Poi.adapters import Response
 from Products.Poi.config import DEFAULT_ISSUE_MIME_TYPE
 from Products.Poi.config import ISSUE_MIME_TYPES
+from Products.Poi.utils import normalize_filename
 from zope.component.hooks import getSite
+from zope.schema._bootstrapinterfaces import ConstraintNotSatisfied
 
 from poi.receivemail.config import LISTEN_ADDRESSES
 from poi.receivemail.config import FAKE_MANAGER
@@ -98,10 +101,8 @@ class Receiver(BrowserView):
             mimetype = 'text/plain'
             logger.info('No details found in email.')
 
-        # Create an attachment from the complete email.  Somehow the
-        # result is nicer when it is put in a response than in an
-        # issue.  Not much we can do about that probably.
-        attachment = File('email.eml', 'E-mail', mail)
+        # Create an attachment from the complete email.
+        attachment = mail
 
         tags = self.get_tags(message)
         if tags:
@@ -177,6 +178,10 @@ class Receiver(BrowserView):
                 return u'Unauthorized'
             logger.info('Created issue from email at %s', issue.absolute_url())
         else:
+            attachment = NamedBlobFile(
+                attachment,
+                contentType='message/rfc822',
+                filename=u'email.eml')
             try:
                 self.add_response(issue, text=details, mimetype=mimetype,
                                   attachment=attachment)
@@ -191,7 +196,15 @@ class Receiver(BrowserView):
             for name, att in attachments:
                 logger.info("Adding attachment as response: %r, length %d",
                             name, len(att))
-                attachment = File(name, name, att)
+                name = safe_unicode(name)
+                try:
+                    attachment = NamedBlobFile(att, filename=name)
+                except ConstraintNotSatisfied:
+                    # Found in live data: a filename that includes a newline...
+                    logger.info('Trying to normalize filename %s', name)
+                    name = normalize_filename(name, self.request)
+                    logger.info('Normalize to %s', name)
+                    attachment = NamedBlobFile(att, filename=name)
                 try:
                     self.add_response(issue, text='', mimetype='text/plain',
                                       attachment=attachment)
@@ -558,7 +571,11 @@ class Receiver(BrowserView):
         for fieldname, value in kwargs.items():
             field = issue.getField(fieldname)
             if field:
-                field.set(issue, value)
+                if fieldname == 'attachment':
+                    field.set(issue, value, mimetype='message/rfc822',
+                              filename=u'email.eml')
+                else:
+                    field.set(issue, value)
 
         # Some fields are required.  We pick the first available
         # option.
