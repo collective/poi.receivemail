@@ -556,15 +556,30 @@ class Receiver(BrowserView):
         return attachments
 
     def create_issue(self, **kwargs):
-        """Create an issue in the given tracker, and perform workflow and
+        """Create an issue in the given tracker.
+
+        Also perform workflow and
         rename-after-creation initialisation.
+
+        Renaming can give hard to debug permission problems
+        in combination with our adopt_user and adopt_roles,
+        so we simply determine the good id in the first place.
         """
         tracker = self.context
-        newId = tracker.generateUniqueId('PoiIssue')
+        # newId = tracker.generateUniqueId('PoiIssue')
+        # Taken over from PoiIssue._renameAfterCreation:
+        maxId = 0
+        for id in tracker.objectIds():
+            try:
+                intId = int(id)
+                maxId = max(maxId, intId)
+            except (TypeError, ValueError):
+                pass
+        newId = str(maxId + 1)
         _createObjectByType('PoiIssue', tracker, newId,
                             **kwargs)
         issue = getattr(tracker, newId)
-        issue._renameAfterCreation()
+        # issue._renameAfterCreation()
 
         # Some fields have no effect when set with the above
         # _createObjectByType call.

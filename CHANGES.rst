@@ -4,7 +4,10 @@ Changelog
 3.0.1 (unreleased)
 ------------------
 
-- Nothing changed yet.
+- Create issue with proper id directly.
+  Renaming can give hard to debug permission problems
+  in combination with our adopt_user and adopt_roles.
+  [maurits]
 
 
 3.0.0 (2017-10-31)
