@@ -1,7 +1,7 @@
 Changelog
 =========
 
-3.0.1 (unreleased)
+3.0.1 (2017-11-13)
 ------------------
 
 - Create issue with proper id directly.
